@@ -1,1 +1,25 @@
 *.log
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+
+# Notebooks
+.ipynb_checkpoints/
+
+# Model artifacts
+checkpoints/
+*.safetensors
+*.bin
+*.pt
+wandb/
+
+# OS
+.DS_Store
+
+# Claude Code
+.claude/
