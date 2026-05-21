@@ -41,6 +41,19 @@ This is a portfolio/weekend project. Favor:
 
 Avoid adding orchestration frameworks, plugin systems, or config layers the current scope doesn't need.
 
+## Evaluation rules (see `results/eval_methodology.md`)
+
+Priorities are strict and ordered: **P1 Quality > P2 Cost > P3 Latency**. A cost or latency win that regresses any P1 metric is rejected, not negotiated.
+
+Quality is measured in three tiers — only escalate to the next when the previous is inconclusive:
+1. **Mechanical** (inline, binary): format-adherence regex, citation-section-exists check, schema validation.
+2. **Coverage**: numerator/denominator over the explicit in-scope topic list. Has a non-regression floor set by v0.
+3. **LLM-as-judge**: only when tiers 1+2 are inconclusive. Never the primary signal.
+
+**v0 is the fixed reference** — base Mistral 7B Instruct v0.3, no fine-tuning, scored at a frozen commit. Do not let v0 drift with upstream.
+
+**n=1 is not a result.** Each ship-candidate config is trained ≥3 times with different seeds before a verdict.
+
 ## Code conventions
 
 - Python 3.11+, argparse for CLIs, YAML for configs, JSONL for datasets.
