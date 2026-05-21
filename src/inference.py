@@ -97,6 +97,64 @@ def generate_hf_inference(
     return response.choices[0].message.content
 
 
+# Cache loaded MLX models across calls — `load()` is slow (10–30s); we want
+# to pay it once per process, not per question.
+_mlx_cache: dict = {}
+
+# Mistral hasn't published its instruct models with MLX weights, so the
+# canonical MLX repo is `mlx-community/<...>-4bit`. Map the project's
+# canonical model id to the MLX-friendly 4-bit conversion automatically.
+MLX_MODEL_MAP = {
+    "mistralai/Mistral-7B-Instruct-v0.3": "mlx-community/Mistral-7B-Instruct-v0.3-4bit",
+}
+
+
+def generate_mlx(
+    question: str, model: str, max_tokens: int, temperature: float
+) -> str:
+    try:
+        from mlx_lm import generate as mlx_generate, load
+        from mlx_lm.sample_utils import make_sampler
+    except ImportError as exc:
+        raise RuntimeError(
+            "mlx_lm is required for the mlx backend. "
+            "Install with `pip install mlx-lm` (Apple Silicon only)."
+        ) from exc
+
+    mlx_id = MLX_MODEL_MAP.get(model, model)
+    if mlx_id not in _mlx_cache:
+        _mlx_cache[mlx_id] = load(mlx_id)
+    mdl, tok = _mlx_cache[mlx_id]
+
+    # Mistral's chat template rejects a standalone "system" role — fold the
+    # system prompt into the first user message. API backends (Together,
+    # HF) reformat this server-side; MLX hits the raw Jinja template.
+    messages = build_messages(question)
+    if (
+        len(messages) >= 2
+        and messages[0]["role"] == "system"
+        and messages[1]["role"] == "user"
+    ):
+        messages = [
+            {
+                "role": "user",
+                "content": f"{messages[0]['content']}\n\n{messages[1]['content']}",
+            },
+            *messages[2:],
+        ]
+    prompt = tok.apply_chat_template(
+        messages, tokenize=False, add_generation_prompt=True
+    )
+    sampler = make_sampler(temp=temperature)
+    return mlx_generate(
+        mdl, tok,
+        prompt=prompt,
+        max_tokens=max_tokens,
+        sampler=sampler,
+        verbose=False,
+    )
+
+
 def generate_together(
     question: str, model: str, max_tokens: int, temperature: float
 ) -> str:
@@ -124,6 +182,7 @@ def generate_together(
 
 
 BACKENDS = {
+    "mlx": generate_mlx,
     "together": generate_together,
     "hf-inference": generate_hf_inference,
 }
@@ -138,7 +197,7 @@ def parse_args() -> argparse.Namespace:
     )
     p.add_argument("--max-new-tokens", type=int, default=512)
     p.add_argument("--temperature", type=float, default=0.2)
-    p.add_argument("--backend", default="together", choices=list(BACKENDS))
+    p.add_argument("--backend", default="mlx", choices=list(BACKENDS))
     p.add_argument(
         "--dry-run",
         action="store_true",
