@@ -18,8 +18,8 @@ Given a question like:
 
 The model returns a structured answer:
 
-- **Short answer:** No, the last 4 digits are not considered sensitive cardholder data under PCI-DSS 4.0.1.
-- **Citation:** PCI-DSS 4.0.1 Requirement 3.3 — Sensitive Authentication Data.
+- **Short answer:** No, the last 4 digits of the PAN (with the rest masked or truncated) are not in themselves cardholder data that triggers storage requirements under PCI-DSS 4.0.1.
+- **Citation:** PCI-DSS 4.0.1 Requirement 3.4 — Render PAN unreadable when stored, and 3.5 — PAN masking when displayed (max first six / last four).
 - **Caveat:** Logging the full PAN, even truncated alongside other identifiers that could reconstruct it, may still trigger scope. Confirm with your QSA.
 
 The structured format is part of the fine-tuning objective — the model is trained to always separate answer from citation from caveat, so downstream tooling can parse the output reliably.
@@ -40,7 +40,7 @@ The structured format is part of the fine-tuning objective — the model is trai
 
 ### Base model
 
-Mistral 7B Instruct v0.3, chosen for: open weights, strong instruction following, small enough to fine-tune with LoRA on a single A100 or two consumer GPUs, and architectural alignment with the company whose role I'm targeting.
+Mistral 7B Instruct v0.3, chosen for: open weights, strong instruction following, and small enough to fine-tune with LoRA on a single A100 or two consumer GPUs. Mistral specifically (rather than Llama or Qwen) because I want hands-on familiarity with their architecture and tooling.
 
 ### Fine-tuning method
 
@@ -83,6 +83,8 @@ compliance-copilot/
 │   └── inference.py          # Loading + generation
 ├── notebooks/
 │   └── exploration.ipynb     # EDA and prompt iteration
+├── configs/
+│   └── lora_default.yaml     # Training hyperparams
 ├── results/
 │   ├── eval_results.md       # Numbers + analysis
 │   └── example_outputs.md    # Side-by-side base vs fine-tuned
@@ -177,7 +179,7 @@ This is a weekend project, not a production system. Known limitations:
 Three reasons:
 
 1. **Cost and latency at scale.** If this were embedded in an internal developer tool answering hundreds of questions a day, a 7B local model is dramatically cheaper than per-token API calls to a frontier model.
-2. **Format reliability.** Fine-tuning teaches the model to *always* return the structured three-part output. Prompting a frontier model gets you ~95% reliability; fine-tuning gets you closer to 99%, which matters when downstream tooling parses the output.
+2. **Format reliability.** Fine-tuning teaches the model to *always* return the structured three-part output. Prompting a frontier model is reliable most of the time but not always; fine-tuning narrows the gap considerably, which matters when downstream tooling parses the output. The eval section quantifies this.
 3. **Data residency.** A locally-deployable model lets a compliance-sensitive organization keep compliance questions off third-party APIs. Slightly ironic but real.
 
 ## License
