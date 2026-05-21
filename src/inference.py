@@ -26,6 +26,21 @@ import sys
 import time
 from pathlib import Path
 
+
+def load_env_file(path: Path = Path(".env")) -> None:
+    """Minimal .env loader — no dependency. Existing env vars take precedence."""
+    if not path.exists():
+        return
+    for line in path.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        os.environ.setdefault(key.strip(), value.strip().strip("\"'"))
+
+
+load_env_file()
+
 SYSTEM_PROMPT = """\
 You are a PCI-DSS 4.0.1 compliance assistant for fintech engineering teams.
 Your role: give a direct, cited answer to a specific compliance question.
