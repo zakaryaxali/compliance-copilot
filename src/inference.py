@@ -71,6 +71,9 @@ def build_messages(question: str) -> list[dict]:
 def generate_hf_inference(
     question: str, model: str, max_tokens: int, temperature: float
 ) -> str:
+    # Note: as of 2026-05, HF Inference Providers don't expose any Mistral
+    # instruct model on the free serverless tier. Kept here so future provider
+    # changes can re-enable this backend without a rewrite.
     try:
         from huggingface_hub import InferenceClient
     except ImportError as exc:
@@ -94,7 +97,36 @@ def generate_hf_inference(
     return response.choices[0].message.content
 
 
-BACKENDS = {"hf-inference": generate_hf_inference}
+def generate_together(
+    question: str, model: str, max_tokens: int, temperature: float
+) -> str:
+    try:
+        from openai import OpenAI
+    except ImportError as exc:
+        raise RuntimeError(
+            "openai is required for the together backend. "
+            "Install with `pip install openai`."
+        ) from exc
+    api_key = os.environ.get("TOGETHER_API_KEY")
+    if not api_key:
+        raise RuntimeError(
+            "TOGETHER_API_KEY env var is required. Get one at "
+            "https://api.together.ai/settings/api-keys."
+        )
+    client = OpenAI(api_key=api_key, base_url="https://api.together.xyz/v1")
+    response = client.chat.completions.create(
+        model=model,
+        messages=build_messages(question),
+        max_tokens=max_tokens,
+        temperature=temperature,
+    )
+    return response.choices[0].message.content
+
+
+BACKENDS = {
+    "together": generate_together,
+    "hf-inference": generate_hf_inference,
+}
 
 
 def parse_args() -> argparse.Namespace:
@@ -106,7 +138,7 @@ def parse_args() -> argparse.Namespace:
     )
     p.add_argument("--max-new-tokens", type=int, default=512)
     p.add_argument("--temperature", type=float, default=0.2)
-    p.add_argument("--backend", default="hf-inference", choices=list(BACKENDS))
+    p.add_argument("--backend", default="together", choices=list(BACKENDS))
     p.add_argument(
         "--dry-run",
         action="store_true",
