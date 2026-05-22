@@ -110,7 +110,11 @@ MLX_MODEL_MAP = {
 
 
 def generate_mlx(
-    question: str, model: str, max_tokens: int, temperature: float
+    question: str,
+    model: str,
+    max_tokens: int,
+    temperature: float,
+    adapter_path: str | None = None,
 ) -> str:
     try:
         from mlx_lm import generate as mlx_generate, load
@@ -122,9 +126,10 @@ def generate_mlx(
         ) from exc
 
     mlx_id = MLX_MODEL_MAP.get(model, model)
-    if mlx_id not in _mlx_cache:
-        _mlx_cache[mlx_id] = load(mlx_id)
-    mdl, tok = _mlx_cache[mlx_id]
+    cache_key = (mlx_id, adapter_path)
+    if cache_key not in _mlx_cache:
+        _mlx_cache[cache_key] = load(mlx_id, adapter_path=adapter_path)
+    mdl, tok = _mlx_cache[cache_key]
 
     # Mistral's chat template rejects a standalone "system" role — fold the
     # system prompt into the first user message. API backends (Together,
@@ -199,6 +204,11 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--temperature", type=float, default=0.2)
     p.add_argument("--backend", default="mlx", choices=list(BACKENDS))
     p.add_argument(
+        "--adapter-path",
+        default=None,
+        help="LoRA adapter directory (MLX backend only). e.g. checkpoints/v1/adapter",
+    )
+    p.add_argument(
         "--dry-run",
         action="store_true",
         help="Print the prompts that would be sent without calling the model.",
@@ -228,11 +238,19 @@ def main() -> None:
     args.out.parent.mkdir(parents=True, exist_ok=True)
     predictions: list[dict] = []
 
+    gen_kwargs: dict = {}
+    if args.adapter_path is not None and args.backend == "mlx":
+        gen_kwargs["adapter_path"] = args.adapter_path
+
     for q in questions:
         t0 = time.time()
         try:
             answer = generate(
-                q["question"], args.model, args.max_new_tokens, args.temperature
+                q["question"],
+                args.model,
+                args.max_new_tokens,
+                args.temperature,
+                **gen_kwargs,
             )
             err = None
         except Exception as exc:  # noqa: BLE001
@@ -245,6 +263,7 @@ def main() -> None:
                 "answer": answer,
                 "model": args.model,
                 "backend": args.backend,
+                "adapter_path": args.adapter_path,
                 "latency_seconds": latency,
                 **({"error": err} if err else {}),
             }

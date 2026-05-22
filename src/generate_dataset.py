@@ -60,16 +60,23 @@ REQUIREMENT:
   Principal: Requirement {principal} — {principal_title}
 
 Rules for the questions:
-  - Sound like real engineering questions (concrete systems, code, infra)
-  - Vary the scenarios (storage, network, access, key management, …)
-  - Stay grounded so {req_id} is genuinely the right citation
-  - Avoid generic / academic phrasing
-  - Mix easy and hard ones (some "it depends", some direct)
+  - Sound like real engineering questions. Reference concrete systems, \
+tools, code, infrastructure, vendors, or workflows.
+  - Vary the scenarios (storage, network, access, key management, logging, …).
+  - Stay grounded so {req_id} is genuinely the right citation.
+  - Avoid generic / academic / textbook phrasing.
 
-For each question, write a structured answer in these fields:
-  - short_answer: 1–2 sentences, direct. If the answer depends on context, say so.
-  - citation_text: "Requirement {req_id} — <brief restatement of the rule>"
-  - caveat: what could change the answer, or "none."
+Rules for the answers:
+  - **short_answer must commit to a position.** Direct rules get direct \
+answers (Yes / No / "every six months" / "before authorization completes"). \
+Use "It depends" ONLY when the question genuinely lacks information needed \
+to answer definitively. Do NOT use "It depends" to hedge against direct rules.
+  - **short_answer must explain how the requirement applies to the engineer's \
+specific scenario.** Do not merely restate the requirement title.
+  - citation_text MUST use the exact ID {req_id} and a brief, concrete \
+restatement of the rule in plain language.
+  - **caveat MUST be a complete sentence ending with a period.** If there \
+is genuinely no caveat, write exactly: "none."
 
 IMPORTANT:
   - Cite ONLY real PCI-DSS 4.0.1 requirement IDs. Never invent numbers.
